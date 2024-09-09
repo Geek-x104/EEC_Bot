@@ -17,7 +17,10 @@
   },
   "homepage": "https://github.com/Geek-x104/EEC_Bot#readme",
   "dependencies": {
-    "discord.js": "^14.16.1"
+    "discord.js": "^14.16.1",
+    "dotenv": "^16.4.5",
+    "sequelize": "^6.37.3",
+    "sqlite3": "^5.1.7"
   },
   "devDependencies": {
     "eslint": "^9.10.0"
