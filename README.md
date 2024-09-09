@@ -1,5 +1,6 @@
-# EEC_Bot
-Bot for the Emperors Endless Crusade.
-[Discord](https://discord.gg/c63NrTSvRz)
+# Emperors Endless Crusade Discord Bot.
+This Repository contains the code for the Emperors Endless Crusade bot, used inside of the [discord](https://discord.gg/c63NrTSvRz) server of the same name.
 
-[Terms of Service](https://github.com/Geek-x104/EEC_Bot/wiki/Terms-of-Service)
+If you find any issues, please report them under Issues immediately as this helps us maintain the bot and keep it secure. Thank you in advance.
+
+[Bot Terms of Service](https://github.com/Geek-x104/EEC_Bot/wiki/Terms-of-Service)
