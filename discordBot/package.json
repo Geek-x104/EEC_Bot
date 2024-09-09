@@ -1,0 +1,25 @@
+{
+  "name": "eec_bot",
+  "version": "1.0.0",
+  "description": "Bot for the Emperors Endless Crusade.",
+  "main": "index.js",
+  "scripts": {
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Geek-x104/EEC_Bot.git"
+  },
+  "author": "Geek-x",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Geek-x104/EEC_Bot/issues"
+  },
+  "homepage": "https://github.com/Geek-x104/EEC_Bot#readme",
+  "dependencies": {
+    "discord.js": "^14.16.1"
+  },
+  "devDependencies": {
+    "eslint": "^9.10.0"
+  }
+}
