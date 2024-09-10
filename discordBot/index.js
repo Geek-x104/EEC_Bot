@@ -46,7 +46,7 @@ const client = new Client({
 
 client.on('ready', () => {
   console.log(`Logged in as ${client.user.tag}!`);
-  client.user.setActivity('This Bot is WIP and therefore is only up from around 10am-11pm BST.', { type: ActivityType.Playing });
+  client.user.setActivity('to commands from the Battle Barge!', { type: ActivityType.Listening });
   client.application.commands.set(commands);
 });
 
