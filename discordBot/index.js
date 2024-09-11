@@ -102,18 +102,36 @@ client.on('interactionCreate', async interaction => {
 
   if (command === 'giverole') {
     try {
-      const role = args.getRole('role');
+      const roles = args.getRoles('roles'); // Get multiple roles
       const user = args.getUser('user');
       const member = interaction.guild.members.cache.get(user.id);
+      
       if (!member) {
         interaction.reply('User not found!');
         return;
       }
-      if (!member.roles.cache.has(role.id)) {
-        await member.roles.add(role);
-        interaction.reply(`Added role ${role.name} to ${user.username}!`);
-      } else {
-        interaction.reply(`${user.username} already has role ${role.name}!`);
+      
+      // Check if the user running the command has the ManageRoles permission
+      if (!interaction.member.permissions.has(PermissionsBitField.Flags.ManageRoles)) {
+        interaction.reply('You do not have the necessary permissions to give roles!');
+        return;
+      }
+
+      // Add role limit check
+      const maxRoles = 5; // Set the maximum number of roles a user can have
+      const userRoles = member.roles.cache.size;
+      if (userRoles + roles.size >= maxRoles) {
+        interaction.reply(`User already has ${maxRoles} roles!`);
+        return;
+      }
+      
+      for (const role of roles.values()) {
+        if (!member.roles.cache.has(role.id)) {
+          await member.roles.add(role);
+          interaction.reply(`Added role ${role.name} to ${user.username}!`);
+        } else {
+          interaction.reply(`${user.username} already has role ${role.name}!`);
+        }
       }
     } catch (error) {
       console.error(error);
@@ -123,18 +141,36 @@ client.on('interactionCreate', async interaction => {
   
   if (command === 'removerole') {
     try {
-      const role = args.getRole('role');
+      const roles = args.getRoles('roles'); // Get multiple roles
       const user = args.getUser('user');
       const member = interaction.guild.members.cache.get(user.id);
+      
       if (!member) {
         interaction.reply('User not found!');
         return;
       }
-      if (member.roles.cache.has(role.id)) {
-        await member.roles.remove(role);
-        interaction.reply(`Removed role ${role.name} from ${user.username}!`);
-      } else {
-        interaction.reply(`${user.username} does not have role ${role.name}!`);
+      
+      // Check if the user running the command has the ManageRoles permission
+      if (!interaction.member.permissions.has(PermissionsBitField.Flags.ManageRoles)) {
+        interaction.reply('You do not have the necessary permissions to give roles!');
+        return;
+      }
+      
+      // Add role limit check
+      const minRoles = 1; // Set the minimum number of roles
+      const userRoles = member.roles.cache.size;
+      if (userRoles - roles.size < minRoles) {
+        interaction.reply(`User must have at least ${minRoles} roles!`);
+        return;
+      }
+      
+      for (const role of roles.values()) {
+        if (member.roles.cache.has(role.id)) {
+          await member.roles.remove(role);
+          interaction.reply(`Removed role ${role.name} from ${user.username}!`);
+        } else {
+          interaction.reply(`${user.username} does not have role ${role.name}!`);
+        }
       }
     } catch (error) {
       console.error(error);
@@ -165,7 +201,14 @@ client.on('interactionCreate', async interaction => {
         interaction.reply('Points must be a positive integer!');
         return;
       }
-  
+
+      const requiredRole = 'Tech-priest'; // Replace with the desired role name
+      const member = interaction.guild.members.cache.get(interaction.user.id);
+      if (!member.roles.cache.some(role => role.name === requiredRole)) {
+        interaction.reply('You do not have the required role to add points!');
+        return;
+      }
+
       const existingEntry = await Leaderboard.findOne({ where: { userId: memberId } });
       if (existingEntry) {
         // Update existing entry with new points
@@ -221,6 +264,13 @@ if (command === 'removepoints') {
     // Check if points is a positive integer
     if (points <= 0) {
       interaction.reply('Points must be a positive integer!');
+      return;
+    }
+
+    const requiredRole = 'Tech-priest'; // Replace with the desired role name
+    const member = interaction.guild.members.cache.get(interaction.user.id);
+    if (!member.roles.cache.some(role => role.name === requiredRole)) {
+      interaction.reply('You do not have the required role to add points!');
       return;
     }
 
