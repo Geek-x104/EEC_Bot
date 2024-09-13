@@ -51,20 +51,6 @@ client.on('ready', () => {
 });
 
 const commands = [
-    new SlashCommandBuilder()
-    .setName('giverole')
-    .setDescription('Give a role to a user')
-    .addRoleOption(option => option.setName('role').setDescription('The role to give').setRequired(true))
-    .addUserOption(option => option.setName('user').setDescription('The user to give the role to').setRequired(true))
-    .setDefaultMemberPermissions(PermissionsBitField.Flags.ManageRoles),
-
-  new SlashCommandBuilder()
-    .setName('removerole')
-    .setDescription('Remove a role from a user')
-    .addRoleOption(option => option.setName('role').setDescription('The role to remove').setRequired(true))
-    .addUserOption(option => option.setName('user').setDescription('The user to remove the role from').setRequired(true))
-    .setDefaultMemberPermissions(PermissionsBitField.Flags.ManageRoles),
-
   new SlashCommandBuilder()
     .setName('addpoints')
     .setDescription('Add points to a user')
@@ -100,90 +86,12 @@ client.on('interactionCreate', async interaction => {
   const command = interaction.commandName;
   const args = interaction.options;
 
-  if (command === 'giverole') {
-    try {
-      const roles = args.getRoles('roles'); // Get multiple roles
-      const user = args.getUser('user');
-      const member = interaction.guild.members.cache.get(user.id);
-      
-      if (!member) {
-        interaction.reply('User not found!');
-        return;
-      }
-      
-      // Check if the user running the command has the ManageRoles permission
-      if (!interaction.member.permissions.has(PermissionsBitField.Flags.ManageRoles)) {
-        interaction.reply('You do not have the necessary permissions to give roles!');
-        return;
-      }
-
-      // Add role limit check
-      const maxRoles = 5; // Set the maximum number of roles a user can have
-      const userRoles = member.roles.cache.size;
-      if (userRoles + roles.size >= maxRoles) {
-        interaction.reply(`User already has ${maxRoles} roles!`);
-        return;
-      }
-      
-      for (const role of roles.values()) {
-        if (!member.roles.cache.has(role.id)) {
-          await member.roles.add(role);
-          interaction.reply(`Added role ${role.name} to ${user.username}!`);
-        } else {
-          interaction.reply(`${user.username} already has role ${role.name}!`);
-        }
-      }
-    } catch (error) {
-      console.error(error);
-      interaction.reply('An error occurred while giving the role!');
-    }
-  }
-  
-  if (command === 'removerole') {
-    try {
-      const roles = args.getRoles('roles'); // Get multiple roles
-      const user = args.getUser('user');
-      const member = interaction.guild.members.cache.get(user.id);
-      
-      if (!member) {
-        interaction.reply('User not found!');
-        return;
-      }
-      
-      // Check if the user running the command has the ManageRoles permission
-      if (!interaction.member.permissions.has(PermissionsBitField.Flags.ManageRoles)) {
-        interaction.reply('You do not have the necessary permissions to give roles!');
-        return;
-      }
-      
-      // Add role limit check
-      const minRoles = 1; // Set the minimum number of roles
-      const userRoles = member.roles.cache.size;
-      if (userRoles - roles.size < minRoles) {
-        interaction.reply(`User must have at least ${minRoles} roles!`);
-        return;
-      }
-      
-      for (const role of roles.values()) {
-        if (member.roles.cache.has(role.id)) {
-          await member.roles.remove(role);
-          interaction.reply(`Removed role ${role.name} from ${user.username}!`);
-        } else {
-          interaction.reply(`${user.username} does not have role ${role.name}!`);
-        }
-      }
-    } catch (error) {
-      console.error(error);
-      interaction.reply('An error occurred while removing the role!');
-    }
-  }
-
   if (command === 'howto') {
     interaction.reply('How to Give and Remove Points, and view the leaderboard:\nADDING POINTS:\nStep 1: Type "/addpoints" and specify the user and the amount of points.\nStep 2: Press Send, then run "/leaderboard".\nThis should display the leaderboard and allow you to see everones points.\nREMOVING POINTS:\nStep 1: Run "/removepoints" and specify the user and the amount of points.\nStep 2: Press Send, then run "/leaderboard".\nThis should display the leaderboard and allow you to see everones points.')
   }
 
   if (command === 'help') {
-    interaction.reply('/giverole - adds role to user.\n/removerole - removes role from user.\n/addpoints - adds a specified amount of points to a specified user.\n/removepoints - removes a specified amount of points to a specified user.\n/howto - shows how to give and remove points and display the leaderboard.\n')
+    interaction.reply('/addpoints - adds a specified amount of points to a specified user.\n/removepoints - removes a specified amount of points to a specified user.\n/howto - shows how to give and remove points and display the leaderboard.\n/leaderboard - displays the leaderboard.\n')
   }
 
   if (command === 'ping') {
@@ -225,73 +133,122 @@ client.on('interactionCreate', async interaction => {
   }
 
   if (command === 'leaderboard') {
-    if (!interaction.guild) {
-      interaction.reply('This command can only be used in a guild!');
-      return;
-    }
-    const leaderboardEntries = await Leaderboard.findAll({
-      order: [['points', 'DESC']],
-    });
-    const members = await Promise.all(leaderboardEntries.map(async entry => {
-      const memberId = entry.userId;
-      let member = interaction.guild.members.cache.get(memberId);
-      if (!member) {
-        try {
-          member = await interaction.guild.members.fetch(memberId);
-        } catch (error) {
-          console.error(`Error fetching member ${memberId}: ${error}`);
-          member = null;
-        }
+    try {
+      const leaderboardEntries = await Leaderboard.findAll({
+        order: [['points', 'DESC']],
+        where: {
+          points: {
+            [Sequelize.Op.gt]: 0,
+          },
+        },
+      });
+  
+      const pageSize = 15;
+      const pages = Math.ceil(leaderboardEntries.length / pageSize);
+      const currentPage = 1;
+  
+      const leaderboardEmbed = new Discord.EmbedBuilder()
+        .setTitle('Leaderboard')
+        .setDescription(
+          leaderboardEntries
+            .slice((currentPage - 1) * pageSize, currentPage * pageSize)
+            .map((entry, index) => {
+              const member = interaction.guild.members.cache.get(entry.userId);
+              return `${index + 1}. ${member ? member.toString() : 'Unknown User'} - ${entry.points} points`;
+            })
+            .join('\n')
+        );
+  
+      if (pages > 1) {
+        leaderboardEmbed.setFooter({ text: `Page ${currentPage} of ${pages}` });
       }
-      return member;
-    }));
+      interaction.reply({ embeds: [leaderboardEmbed] });
+  
+      const filter = (reaction, user) => {
+        return ['⏪️', '⏩️'].includes(reaction.emoji.name) && user.id === interaction.user.id;
+      };
+  
+      const collector = interaction.channel.createReactionCollector({ filter, time: 30000 });
+  
+      collector.on('collect', (reaction, user) => {
+        if (reaction.emoji.name === '⏪️') {
+          if (currentPage > 1) {
+            currentPage--;
+            updateLeaderboardEmbed(leaderboardEntries, currentPage, pageSize);
+          }
+        } else if (reaction.emoji.name === '⏩️') {
+          if (currentPage < pages) {
+            currentPage++;
+            updateLeaderboardEmbed(leaderboardEntries, currentPage, pageSize);
+          }
+        }
+      });
+  
+      collector.on('end', () => {
+        interaction.message.reactions.removeAll().catch(error => console.error('Failed to clear reactions:', error));
+      });
+    } catch (error) {
+      console.error(error);
+      interaction.reply('An error occurred while fetching the leaderboard!');
+    }
+  }
+  
+  function updateLeaderboardEmbed(leaderboardEntries, currentPage, pageSize) {
     const leaderboardEmbed = new Discord.EmbedBuilder()
       .setTitle('Leaderboard')
       .setDescription(
-        members.filter(member => member !== null).map(member => {
-          return `${member.toString()} - ${leaderboardEntries.find(entry => entry.userId === member.id).points} points`;
-        }).join('\n')
+        leaderboardEntries
+          .slice((currentPage - 1) * pageSize, currentPage * pageSize)
+          .map((entry, index) => {
+            const member = interaction.guild.members.cache.get(entry.userId);
+            return `${index + 1}. ${member ? member.toString() : 'Unknown User'} - ${entry.points} points`;
+          })
+          .join('\n')
       );
-    interaction.reply({ embeds: [leaderboardEmbed] });
+  
+    if (pages > 1) {
+      leaderboardEmbed.setFooter({ text: `Page ${currentPage} of ${pages}` });
+    }
+  
+    interaction.message.edit({ embeds: [leaderboardEmbed] });
   }
 
-if (command === 'removepoints') {
-  try {
-    const user = args.getUser('user');
-    const points = args.getInteger('points');
-    const memberId = user.id;
+  if (command === 'removepoints') {
+    try {
+      const user = args.getUser('user');
+      const points = args.getInteger('points');
+      const memberId = user.id;
 
-    // Check if points is a positive integer
-    if (points <= 0) {
-      interaction.reply('Points must be a positive integer!');
-      return;
-    }
-
-    const requiredRole = 'Tech-priest'; // Replace with the desired role name
-    const member = interaction.guild.members.cache.get(interaction.user.id);
-    if (!member.roles.cache.some(role => role.name === requiredRole)) {
-      interaction.reply('You do not have the required role to add points!');
-      return;
-    }
-
-    const existingEntry = await Leaderboard.findOne({ where: { userId: memberId } });
-    if (existingEntry) {
-      // Update existing entry with new points
-      if (existingEntry.points < points) {
-        interaction.reply(`You cannot remove more points than ${user.username} has!`);
+      // Check if points is a positive integer
+      if (points <= 0) {
+        interaction.reply('Points must be a positive integer!');
         return;
       }
-      await existingEntry.update({ points: existingEntry.points - points });
-      interaction.reply(`Removed ${points} points from ${user.username}!`);
-    } else {
-      interaction.reply(`${user.username} does not have any points to remove!`);
+
+      const requiredRole = 'Tech-priest'; // Replace with the desired role name
+      const member = interaction.guild.members.cache.get(interaction.user.id);
+      if (!member.roles.cache.some(role => role.name === requiredRole)) {
+        interaction.reply('You do not have the required role to add points!');
+        return;
+      }
+
+      const existingEntry = await Leaderboard.findOne({ where: { userId: memberId } });
+      if (existingEntry) {
+        // Update existing entry with new points
+        if (existingEntry.points < points) {
+          interaction.reply(`You cannot remove more points than ${user.username} has!`);
+          return;
+        }
+        await existingEntry.update({ points: existingEntry.points - points });
+        interaction.reply(`Removed ${points} points from ${user.username}!`);
+      } else {
+        interaction.reply(`${user.username} does not have any points to remove!`);
+      }
+    } catch (error) {
+      console.error(error);
+      interaction.reply('An error occurred while removing points!');
     }
-  } catch (error) {
-    console.error(error);
-    interaction.reply('An error occurred while removing points!');
-  }
   }
 });
-
 
 client.login(process.env.CLIENT_TOKEN); // signs the bot in with token
